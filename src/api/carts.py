@@ -1,10 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
-import sqlalchemy
+import sqlalchemy as sa
 from src.api import auth
 from enum import Enum
 from typing import List, Optional
 from src import database as db
+from enum import Enum
+from src.api.catalog import PRICE_PER_POTION, POTION_TYPE_LOOKUP  
+from src.api.bottler import DARK_RECIPE  
+
+
 
 router = APIRouter(
     prefix="/carts",
@@ -135,32 +140,66 @@ def checkout(cart_id: int, cart_checkout: CartCheckout):
     if cart_id not in carts:
         raise HTTPException(status_code=404, detail="Cart not found")
 
-    total_potions_bought = sum(carts[cart_id].values())
-    total_gold_paid = total_potions_bought * 50  # Assuming each potion costs 50 gold
+    order = carts[cart_id]
+    if not order:
+        raise HTTPException(status_code=400, detail="Cart is empty")
+
+    # Calculate totals
+    total_gold_paid = sum(PRICE_PER_POTION[sku] * qty for sku, qty in order.items())
+    total_potions_bought = sum(order.values())
+
+    # Map SKU → column name in global_inventory
+    pot_field_map = {
+        "RED_POTION": "red_potions",
+        "GREEN_POTION": "green_potions",
+        "BLUE_POTION": "blue_potions",
+        "DARK_POTION": "dark_potions",
+    }
 
     with db.engine.begin() as connection:
         row = connection.execute(
-            sqlalchemy.text(
+            sa.text(
                 """
-                SELECT gold FROM global_inventory
+                SELECT red_potions, green_potions, blue_potions,
+                       COALESCE(dark_potions, 0) AS dark_potions,
+                       gold
+                FROM global_inventory
                 """
             )
         ).one()
 
-        gold = row.gold
-        gold += total_gold_paid
+        # 1) Validate stock
+        for sku, qty in order.items():
+            if qty > getattr(row, pot_field_map[sku]):
+                raise HTTPException(400, f"Not enough stock for {sku}")
 
-        connection.execute(
-            sqlalchemy.text(
+        # 2) Deduct potions & add gold
+        updates = {
+            "red_delta": -order.get("RED_POTION", 0),
+            "green_delta": -order.get("GREEN_POTION", 0),
+            "blue_delta": -order.get("BLUE_POTION", 0),
+            "dark_delta": -order.get("DARK_POTION", 0),
+            "gold_delta": total_gold_paid,
+        }
+
+        conn.execute(
+            sa.text(
                 """
-                UPDATE global_inventory SET 
-                gold = :total_gold
+                UPDATE global_inventory
+                SET red_potions   = red_potions   + :red_delta,
+                    green_potions = green_potions + :green_delta,
+                    blue_potions  = blue_potions  + :blue_delta,
+                    dark_potions  = COALESCE(dark_potions,0) + :dark_delta,
+                    gold          = gold + :gold_delta
                 """
             ),
-            [{"total_gold": gold}],
+            updates,
         )
-    # TODO: Deduct the right potions from inventory to the shop
+
+    # clear cart (idempotent)
+    carts.pop(cart_id, None)
 
     return CheckoutResponse(
-        total_potions_bought=total_potions_bought, total_gold_paid=total_gold_paid
+        total_potions_bought=total_potions_bought,
+        total_gold_paid=total_gold_paid,
     )

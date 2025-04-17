@@ -24,3 +24,21 @@ def test_bottle_red_potions() -> None:
     assert len(result) == 1
     assert result[0].potion_type == [100, 0, 0, 0]
     assert result[0].quantity == 5
+
+
+
+def test_bottle_red_potions() -> None:
+    """
+    500 ml of red should bottle into 5 pure‑red potions.
+    """
+    plan = create_bottle_plan(
+        red_ml=500,
+        green_ml=0,
+        blue_ml=0,
+        maximum_potion_capacity=100,   # plenty of capacity
+        current_potion_inventory=[],
+    )
+
+    assert len(plan) == 1
+    assert plan[0].potion_type == [100, 0, 0, 0]
+    assert plan[0].quantity == 500 // ML_PER_POTION   # 5 bottles
