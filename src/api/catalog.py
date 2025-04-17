@@ -79,7 +79,7 @@ def _create_catalog() -> List[CatalogItem]:
 @router.get("/catalog/", tags=["catalog"], response_model=List[CatalogItem])
 def get_catalog():
     with db.engine.begin() as conn:
-        rows = conn.execute(sa.text(
+        rows = conn.execute(sqlalchemy.text(
             "SELECT * FROM potion_recipes WHERE inventory > 0 LIMIT 6"
         )).mappings().all()
 
