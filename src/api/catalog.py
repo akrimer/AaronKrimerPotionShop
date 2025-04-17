@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from pydantic import BaseModel, Field
 from typing import List, Annotated
-import sqlalchemy as sa
+import sqlalchemy 
 from src import database as db
 from src.api.bottler import DARK_RECIPE  # reusing the mix percentages
 
@@ -42,7 +42,7 @@ class CatalogItem(BaseModel):
 def _create_catalog() -> List[CatalogItem]:
     with db.engine.begin() as connection:
         row = connection.execute(
-            sa.text(
+            sqlalchemy.text(
                 """
                 SELECT red_potions, green_potions, blue_potions, dark_potions
                 FROM global_inventory
@@ -77,9 +77,20 @@ def _create_catalog() -> List[CatalogItem]:
     return items[:6]
 
 @router.get("/catalog/", tags=["catalog"], response_model=List[CatalogItem])
-def get_catalog() -> List[CatalogItem]:
-    """
-    Retrieves the catalog of items. Each unique item combination should have only a single price
-    can have 6 potion skus offered in your catalog at a time
-    """
-    return create_catalog()
+def get_catalog():
+    with db.engine.begin() as conn:
+        rows = conn.execute(sa.text(
+            "SELECT * FROM potion_recipes WHERE inventory > 0 LIMIT 6"
+        )).mappings().all()
+
+    return [
+        CatalogItem(
+            sku=row["sku"],
+            name=row["name"],
+            quantity=row["inventory"],
+            price=row["price"],
+            potion_type=[row["red_pct"], row["green_pct"],
+                         row["blue_pct"], row["dark_pct"]],
+        )
+        for row in rows
+    ]
