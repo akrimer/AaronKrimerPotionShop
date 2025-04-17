@@ -124,3 +124,9 @@ def test_cant_afford_barrel_plan() -> None:
     assert isinstance(barrel_orders, list)
     assert all(isinstance(order, BarrelOrder) for order in barrel_orders)
     assert len(barrel_orders) == 0  # Ensure at least one order is generated
+
+
+
+
+
+
