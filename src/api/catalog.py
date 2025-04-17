@@ -38,49 +38,13 @@ class CatalogItem(BaseModel):
     )
 
 
-# Placeholder function, you will replace this with a database call
-def _create_catalog() -> List[CatalogItem]:
-    with db.engine.begin() as connection:
-        row = connection.execute(
-            sqlalchemy.text(
-                """
-                SELECT red_potions, green_potions, blue_potions, dark_potions
-                FROM global_inventory
-                """
-            )
-        ).one()
-
-    inventory_map = {
-        "RED_POTION": row.red_potions,
-        "GREEN_POTION": row.green_potions,
-        "BLUE_POTION": row.blue_potions,
-        "DARK_POTION": getattr(row, "dark_potions", 0),  # dark column added in migration
-    }
-
-    items: List[CatalogItem] = []
-    for sku, qty in (
-        ("RED_POTION",  row.red_potions),
-        ("GREEN_POTION",row.green_potions),
-        ("BLUE_POTION", row.blue_potions),
-    ):
-        if qty > 0:
-            items.append(
-            CatalogItem(
-                sku=sku,
-                name=sku.lower().replace("_", " "),
-                quantity=qty,
-                price=PRICE_PER_POTION[sku],
-                potion_type=POTION_TYPE_LOOKUP[sku],
-            )
-        )
-    # exchange rule - atmost 6 SKUs
-    return items[:6]
 
 @router.get("/catalog/", tags=["catalog"], response_model=List[CatalogItem])
 def get_catalog():
-    with db.engine.begin() as conn:
-        rows = conn.execute(sqlalchemy.text(
-            "SELECT * FROM potion_recipes WHERE inventory > 0 LIMIT 6"
+    with db.engine.begin() as connection:
+        rows = connection.execute(sqlalchemy.text(
+            "SELECT sku, name, price, red_pct, green_pct, blue_pct, dark_pct, inventory "
++           "FROM potion_recipes WHERE inventory > 0 LIMIT 6"
         )).mappings().all()
 
     return [

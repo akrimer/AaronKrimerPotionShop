@@ -2,12 +2,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 import sqlalchemy as sa
 from src.api import auth
-from enum import Enum
-from typing import List, Optional
+# from enum import Enum
+from typing import List   #, Optional
 from src import database as db
-from enum import Enum
-from src.api.catalog import PRICE_PER_POTION, POTION_TYPE_LOOKUP  
-from src.api.bottler import DARK_RECIPE  
+# from src.api.catalog import PRICE_PER_POTION, POTION_TYPE_LOOKUP  
+# from src.api.bottler import DARK_RECIPE  
 
 router = APIRouter(
    prefix="/carts",

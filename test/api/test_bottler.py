@@ -27,7 +27,7 @@ def test_bottle_red_potions() -> None:
 
 
 
-def test_bottle_red_potions() -> None:
+def test_bottle_red_potions_2() -> None:
     """
     500 ml of red should bottle into 5 pure‑red potions.
     """
