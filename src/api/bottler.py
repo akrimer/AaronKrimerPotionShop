@@ -1,6 +1,6 @@
 from typing import List
 
-import sqlalchemy as sa
+import sqlalchemy 
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field, field_validator
 
@@ -13,15 +13,12 @@ router = APIRouter(
     dependencies=[Depends(auth.get_api_key)],
 )
 
-# ---------------------------------------------------------------------------
 # Constants
-# ---------------------------------------------------------------------------
-ML_PER_POTION = 100        # one bottle uses 100 ml total liquid
-DARK_RECIPE   = [25, 25, 50, 0]   # r, g, b, d ‑‑ sums to 100
 
-# ---------------------------------------------------------------------------
-# Pydantic model
-# ---------------------------------------------------------------------------
+ML_PER_POTION = 100        
+DARK_RECIPE   = [25, 25, 50, 0]   # r, g, b, d 
+
+
 class PotionMixes(BaseModel):
     potion_type: List[int] = Field(
         ...,
@@ -39,9 +36,7 @@ class PotionMixes(BaseModel):
         return pt
 
 
-# ---------------------------------------------------------------------------
-# Helper utilities
-# ---------------------------------------------------------------------------
+
 def _ml_required(pt: List[int], qty: int) -> tuple[int, int, int]:
     """Return ml to subtract from red, green, blue for qty bottles of mix `pt`"""
     r = pt[0] * ML_PER_POTION // 100 * qty
@@ -60,9 +55,9 @@ def _pure_colour_index(pt: List[int]) -> int | None:
     return None
 
 
-# ---------------------------------------------------------------------------
+
 # Deliver endpoint
-# ---------------------------------------------------------------------------
+
 @router.post("/deliver/{order_id}", status_code=status.HTTP_204_NO_CONTENT)
 def post_deliver_bottles(potions_delivered: List[PotionMixes], order_id: int):
     """
@@ -73,7 +68,7 @@ def post_deliver_bottles(potions_delivered: List[PotionMixes], order_id: int):
         for p in potions_delivered:
             r_ml, g_ml, b_ml = _ml_required(p.potion_type, p.quantity)
 
-            # Which inventory column to increment?
+            #
             idx = _pure_colour_index(p.potion_type)
             if idx is None and p.potion_type != DARK_RECIPE:
                 raise HTTPException(400, "Only pure colours or DARK_RECIPE supported")
@@ -97,9 +92,9 @@ def post_deliver_bottles(potions_delivered: List[PotionMixes], order_id: int):
             )
 
 
-# ---------------------------------------------------------------------------
-# Planner – bottle DARK_RECIPE first, then pure colours
-# ---------------------------------------------------------------------------
+
+# Planner – bottle DARK_RECIPE first, then pure colrs
+
 def create_bottle_plan(
     red_ml: int,
     green_ml: int,
@@ -111,7 +106,7 @@ def create_bottle_plan(
     used_capacity = sum(p.quantity for p in current_potion_inventory)
     capacity_left = max(0, maximum_potion_capacity - used_capacity)
 
-    # Step 1 – dark recipe
+    # drk recipe
     if capacity_left:
         max_from_r = red_ml   // (ML_PER_POTION * DARK_RECIPE[0] / 100) if DARK_RECIPE[0] else float("inf")
         max_from_g = green_ml // (ML_PER_POTION * DARK_RECIPE[1] / 100) if DARK_RECIPE[1] else float("inf")
@@ -125,7 +120,7 @@ def create_bottle_plan(
             green_ml -= qty_dark * DARK_RECIPE[1] * ML_PER_POTION // 100
             blue_ml  -= qty_dark * DARK_RECIPE[2] * ML_PER_POTION // 100
 
-    # Step 2 – pure colours
+    # pure colours
     for colour, stock_ml in (("red", red_ml), ("green", green_ml), ("blue", blue_ml)):
         if capacity_left == 0:
             break
@@ -138,9 +133,8 @@ def create_bottle_plan(
     return plan
 
 
-# ---------------------------------------------------------------------------
+
 # Plan endpoint
-# ---------------------------------------------------------------------------
 @router.post("/plan", response_model=List[PotionMixes])
 def get_bottle_plan():
     """
