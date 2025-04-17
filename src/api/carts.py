@@ -9,6 +9,11 @@ from enum import Enum
 from src.api.catalog import PRICE_PER_POTION, POTION_TYPE_LOOKUP  
 from src.api.bottler import DARK_RECIPE  
 
+router = APIRouter(
+   prefix="/carts",
+   tags=["cart"],
+   dependencies=[Depends(auth.get_api_key)],
+)
 
 
 
